@@ -1,0 +1,77 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="text-center mb-4">
+      <div class="mb-3">
+        <i class="bi-chat-dots-fill" style="font-size: 3rem; color: #1e40af;"></i>
+      </div>
+      <h1 class="login-title">SysApolo</h1>
+      <p class="login-subtitle">Sistema de Trazabilidad de Soporte Contable</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <div class="mb-3">
+        <label class="form-label">
+          <i class="bi bi-person me-1"></i>Alias de usuario
+        </label>
+        <input
+          type="text"
+          class="form-control"
+          formControlName="alias"
+          placeholder="Ingrese su alias"
+          autocomplete="username"
+        />
+        <div
+          class="text-danger small mt-1"
+          *ngIf="form.get('alias')?.touched && form.get('alias')?.invalid"
+        >
+          El alias es requerido
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label">
+          <i class="bi bi-lock me-1"></i>Contraseña
+        </label>
+        <div class="input-group">
+          <input
+            [type]="showPassword ? 'text' : 'password'"
+            class="form-control"
+            formControlName="password"
+            placeholder="Ingrese su contraseña"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            (click)="showPassword = !showPassword"
+          >
+            <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+          </button>
+        </div>
+        <div
+          class="text-danger small mt-1"
+          *ngIf="form.get('password')?.touched && form.get('password')?.invalid"
+        >
+          La contraseña es requerida
+        </div>
+      </div>
+
+      <div class="alert alert-danger py-2" *ngIf="errorMsg">
+        <i class="bi bi-exclamation-circle me-1"></i>{{ errorMsg }}
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-primary w-100"
+        [disabled]="loading"
+      >
+        <span
+          *ngIf="loading"
+          class="spinner-border spinner-border-sm me-2"
+        ></span>
+        <i class="bi bi-box-arrow-in-right me-1" *ngIf="!loading"></i>
+        {{ loading ? 'Ingresando...' : 'Ingresar' }}
+      </button>
+    </form>
+  </div>
+</div>

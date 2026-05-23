@@ -1,0 +1,5 @@
+node_modules/
+dist/
+# El archivo de producción tiene la URL real del servidor — no subir al repo
+src/environments/environment.prod.ts
+

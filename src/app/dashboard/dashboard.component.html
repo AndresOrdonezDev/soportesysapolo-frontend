@@ -1,0 +1,486 @@
+<!-- ═══ NAVBAR ═══════════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background: #1e40af;">
+  <div class="container-fluid px-4">
+    <span class="navbar-brand">
+      <i class="bi-chat-dots-fill me-2"></i>SysApolo — Soporte
+    </span>
+    <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+      <span class="text-white nav-user-info me-1">
+        <i class="bi bi-person-circle me-1"></i>{{ currentUser?.nombre }}
+        <span class="badge bg-light text-primary ms-1" *ngIf="isAdmin">Admin</span>
+        <span class="badge bg-warning text-dark ms-1" *ngIf="isSoporte">Soporte</span>
+      </span>
+
+      <!-- Admin: links de gestión -->
+      <ng-container *ngIf="isAdmin">
+        <button class="btn btn-outline-light btn-sm" routerLink="/users">
+          <i class="bi bi-people me-1"></i>Usuarios
+        </button>
+        <button class="btn btn-outline-light btn-sm" routerLink="/entidades">
+          <i class="bi bi-building me-1"></i>Entidades
+        </button>
+        <button class="btn btn-outline-light btn-sm" routerLink="/areas">
+          <i class="bi bi-diagram-3 me-1"></i>Áreas
+        </button>
+      </ng-container>
+
+      <!-- Admin y Soporte: exportar Excel -->
+      <button *ngIf="isAdmin || isSoporte" class="btn btn-outline-light btn-sm" (click)="openExportModal()">
+        <i class="bi bi-file-earmark-excel me-1"></i>Excel
+      </button>
+
+      <!-- Admin y User: nueva solicitud -->
+      <button *ngIf="!isSoporte" class="btn btn-light btn-sm" (click)="openNuevaSolicitud()">
+        <i class="bi bi-plus-lg me-1"></i>Nueva Solicitud
+      </button>
+
+      <!-- Todos -->
+      <button class="btn btn-outline-light btn-sm" (click)="openCambioClave()">
+        <i class="bi bi-key me-1"></i>Contraseña
+      </button>
+      <button class="btn btn-outline-light btn-sm" (click)="logout()">
+        <i class="bi bi-box-arrow-right me-1"></i>Salir
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══ TOAST TIEMPO REAL ═══════════════════════════════════════════════════ -->
+<div class="ws-toast" *ngIf="wsToast">
+  <i class="bi bi-bell-fill me-2"></i>{{ wsToast }}
+</div>
+
+<!-- ═══ CONTENIDO ════════════════════════════════════════════════════════════ -->
+<div class="container-fluid px-4 py-4">
+
+  <!-- Alertas -->
+  <div class="alert alert-success alert-dismissible py-2" *ngIf="successMsg">
+    <i class="bi bi-check-circle me-1"></i>{{ successMsg }}
+    <button type="button" class="btn-close py-2" (click)="successMsg=''"></button>
+  </div>
+  <div class="alert alert-danger alert-dismissible py-2" *ngIf="error">
+    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+    <button type="button" class="btn-close py-2" (click)="error=''"></button>
+  </div>
+
+  <!-- ── Filtros ────────────────────────────────────────────────────────── -->
+  <div class="card mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex align-items-center flex-wrap gap-3">
+
+        <!-- Selector de entidad (soporte y admin) -->
+        <div class="d-flex align-items-center gap-2" *ngIf="isAdmin || isSoporte">
+          <i class="bi bi-building text-muted"></i>
+          <select class="form-select form-select-sm" style="width:220px"
+            [(ngModel)]="filtroEntidadId" (change)="onFiltroEntidadChange()">
+            <option [ngValue]="null">— Todas las entidades —</option>
+            <option *ngFor="let e of entidadesFilter" [ngValue]="e.id">{{ e.nombre }}</option>
+          </select>
+        </div>
+
+        <!-- Filtros de estado: soporte solo ve Pendiente; admin y user ven todos -->
+        <div class="filtro-radio-group">
+
+          <ng-container *ngIf="!isSoporte">
+            <input type="radio" id="f-todos" name="filtro" class="btn-check"
+              [checked]="filtroEstado==='todos'" (change)="onFiltroEstadoChange('todos')">
+            <label for="f-todos" class="btn btn-sm filtro-btn filtro-todos">
+              Todos <span class="filtro-count">{{ totalCount }}</span>
+            </label>
+          </ng-container>
+
+          <input type="radio" id="f-pendiente" name="filtro" class="btn-check"
+            [checked]="filtroEstado==='pendiente'" (change)="onFiltroEstadoChange('pendiente')">
+          <label for="f-pendiente" class="btn btn-sm filtro-btn filtro-pendiente">
+            Pendiente <span class="filtro-count">{{ pendienteCount }}</span>
+          </label>
+
+          <input type="radio" id="f-resuelto" name="filtro" class="btn-check"
+            [checked]="filtroEstado==='resuelto'" (change)="onFiltroEstadoChange('resuelto')">
+          <label for="f-resuelto" class="btn btn-sm filtro-btn filtro-resuelto">
+            {{ isSoporte ? 'Mis atendidos' : 'Atendidos' }}
+            <span class="filtro-count">{{ resueltoCount }}</span>
+          </label>
+
+        </div>
+
+        <!-- Búsqueda -->
+        <div class="d-flex align-items-center gap-2 ms-auto">
+          <div class="input-group input-group-sm" style="width:240px">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control" placeholder="Buscar título, usuario..."
+              [(ngModel)]="searchTerm" />
+          </div>
+          <button *ngIf="searchTerm" class="btn btn-sm btn-outline-secondary" (click)="searchTerm=''">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Loading / Empty ────────────────────────────────────────────────── -->
+  <div class="text-center py-5" *ngIf="loading">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Cargando solicitudes...</p>
+  </div>
+
+  <div class="text-center py-5" *ngIf="!loading && filteredSoportes.length === 0">
+    <i class="bi bi-inbox" style="font-size:3rem;color:#94a3b8;"></i>
+    <p class="mt-2 text-muted">
+      {{ soportes.length === 0 ? 'No hay solicitudes' : 'Sin resultados para los filtros seleccionados' }}
+    </p>
+    <button *ngIf="!isSoporte && soportes.length === 0" class="btn btn-primary btn-sm" (click)="openNuevaSolicitud()">
+      <i class="bi bi-plus-lg me-1"></i>Crear primera solicitud
+    </button>
+  </div>
+
+  <!-- ── Lista de tickets ───────────────────────────────────────────────── -->
+  <ng-container *ngIf="!loading">
+    <div *ngFor="let s of filteredSoportes"
+      class="ticket-card"
+      [class.expanded]="selectedSoporteId === s.id">
+
+      <!-- Cabecera del ticket -->
+      <div class="ticket-card-header" (click)="selectTicket(s)">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-start justify-content-between gap-2 mb-1">
+            <span class="ticket-titulo">
+              <i class="bi bi-chevron-right me-1 small text-muted"
+                [class.bi-chevron-down]="selectedSoporteId === s.id"
+                [class.bi-chevron-right]="selectedSoporteId !== s.id"></i>
+              #{{ s.id }} — {{ s.titulo || s.motivo || '(sin título)' }}
+            </span>
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+              <span class="badge-pendiente-new" *ngIf="s.estado === 'pendiente'">
+                <i class="bi bi-hourglass-split me-1"></i>Pendiente
+              </span>
+              <span class="badge-resuelto" *ngIf="s.estado === 'resuelto'">
+                <i class="bi bi-check-circle me-1"></i>Atendido
+              </span>
+              <button *ngIf="canDelete(s)" class="btn btn-outline-danger btn-sm py-0 px-1"
+                title="Eliminar" (click)="eliminarSoporte(s, $event)">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="ticket-meta">
+            <span *ngIf="s.entidad"><i class="bi bi-building me-1"></i>{{ s.entidad.nombre }}</span>
+            <span *ngIf="isAdmin || isSoporte"><i class="bi bi-person me-1"></i>{{ s.usuario.nombre }}</span>
+            <span><i class="bi bi-calendar me-1"></i>{{ formatDate(s.fechaSolicitud) }}</span>
+            <span class="text-muted"><i class="bi bi-chat me-1"></i>{{ s.mensajes.length }} mensaje(s)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HILO (expandido) ─────────────────────────────────────────── -->
+      <ng-container *ngIf="selectedSoporteId === s.id">
+
+        <!-- Cargando hilo -->
+        <div class="text-center py-3 border-top" *ngIf="loadingThread">
+          <div class="spinner-border spinner-border-sm text-primary"></div>
+          <span class="ms-2 text-muted small">Cargando hilo...</span>
+        </div>
+
+        <!-- Hilo cargado -->
+        <div class="thread-wrapper" *ngIf="!loadingThread && selectedSoporte">
+
+          <!-- Mensajes -->
+          <div *ngFor="let msg of selectedSoporte.mensajes"
+            class="thread-msg"
+            [class.from-soporte]="msg.usuario.role === 'soporte' || msg.usuario.role === 'admin'">
+
+            <div class="msg-avatar" [class]="getAvatarClass(msg.usuario.role)">
+              {{ getInitials(msg.usuario.nombre) }}
+            </div>
+
+            <div class="msg-content">
+              <div class="msg-author">
+                {{ msg.usuario.nombre }}
+                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem" *ngIf="msg.usuario.role==='soporte'">Soporte</span>
+                <span class="badge bg-success ms-1" style="font-size:0.65rem" *ngIf="msg.usuario.role==='admin'">Admin</span>
+              </div>
+              <div class="msg-bubble">{{ msg.texto }}</div>
+
+              <!-- Adjuntos del mensaje -->
+              <div class="msg-adjuntos" *ngIf="msg.adjuntos?.length">
+                <ng-container *ngFor="let adj of msg.adjuntos">
+                  <!-- Imagen -->
+                  <img *ngIf="adj.tipo === 'image' && getImageUrl(adj.id)"
+                    [src]="getImageUrl(adj.id)"
+                    class="adj-image"
+                    [title]="adj.nombre"
+                    (click)="openImageViewer(getImageUrl(adj.id))" />
+                  <span *ngIf="adj.tipo === 'image' && !getImageUrl(adj.id)"
+                    class="badge bg-light text-muted border small">
+                    <i class="bi bi-image me-1"></i>Cargando...
+                  </span>
+                  <!-- PDF / Word -->
+                  <button *ngIf="adj.tipo !== 'image'"
+                    class="btn btn-outline-secondary btn-sm"
+                    (click)="downloadFile(adj)">
+                    <i class="bi bi-file-earmark-pdf me-1" *ngIf="adj.tipo==='pdf'"></i>
+                    <i class="bi bi-file-earmark-word me-1" *ngIf="adj.tipo==='word'"></i>
+                    <i class="bi bi-file-earmark me-1" *ngIf="adj.tipo==='otro'"></i>
+                    {{ adj.nombre }}
+                    <small class="text-muted ms-1">({{ formatFileSize(adj.tamanio) }})</small>
+                  </button>
+                </ng-container>
+              </div>
+
+              <div class="msg-time">{{ formatDate(msg.fechaCreacion) }}</div>
+            </div>
+          </div>
+
+          <!-- Reply box -->
+          <div class="reply-box" *ngIf="isMyTurn(selectedSoporte)">
+            <div class="d-flex align-items-start gap-2">
+              <div class="msg-avatar flex-shrink-0" [class]="getAvatarClass(currentUser?.role ?? '')">
+                {{ getInitials(currentUser?.nombre ?? '') }}
+              </div>
+              <div class="flex-grow-1">
+                <textarea class="form-control form-control-sm"
+                  rows="3"
+                  placeholder="Escribe tu respuesta..."
+                  [(ngModel)]="replyText"
+                  style="resize:none;border-radius:8px;"></textarea>
+
+                <!-- Adjuntos seleccionados -->
+                <div class="reply-files-list" *ngIf="replyFiles.length">
+                  <div *ngFor="let f of replyFiles; let i = index" class="reply-file-chip">
+                    <i class="bi bi-paperclip"></i>
+                    <span>{{ f.name }}</span>
+                    <small class="text-muted">({{ formatFileSize(f.size) }})</small>
+                    <button class="btn btn-link p-0 text-danger ms-1" style="font-size:0.75rem" (click)="removeReplyFile(i)">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="alert alert-danger py-1 small mt-2" *ngIf="replyError">{{ replyError }}</div>
+
+                <div class="d-flex align-items-center justify-content-between mt-2 gap-2">
+                  <label class="btn btn-outline-secondary btn-sm" title="Adjuntar archivo">
+                    <i class="bi bi-paperclip"></i> Adjuntar
+                    <input type="file" multiple class="d-none"
+                      accept="image/*,.pdf,.doc,.docx"
+                      (change)="onReplyFilesChange($event)" />
+                  </label>
+                  <button class="btn btn-primary btn-sm"
+                    (click)="enviarRespuesta()"
+                    [disabled]="!replyText.trim() || sendingReply">
+                    <span *ngIf="sendingReply" class="spinner-border spinner-border-sm me-1"></span>
+                    <i class="bi bi-send me-1" *ngIf="!sendingReply"></i>
+                    {{ sendingReply ? 'Enviando...' : 'Enviar' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Indicador de turno (no es mi turno) -->
+          <div class="text-muted small fst-italic text-center py-2"
+            *ngIf="!isMyTurn(selectedSoporte) && !isAdmin">
+            <i class="bi bi-hourglass-split me-1"></i>
+            <ng-container *ngIf="isSoporte">Esperando réplica del usuario.</ng-container>
+            <ng-container *ngIf="isUser">Esperando respuesta del soporte.</ng-container>
+          </div>
+
+        </div><!-- /thread-wrapper -->
+      </ng-container>
+
+    </div><!-- /ticket-card -->
+  </ng-container>
+
+</div><!-- /container -->
+
+<!-- ═══ MODAL: Nueva Solicitud ═══════════════════════════════════════════════ -->
+<div class="modal fade" id="nuevaSolicitudModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nueva Solicitud de Soporte</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Entidad (user: muestra readonly, admin: selector) -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Entidad</label>
+          <div *ngIf="isUser" class="form-control-plaintext fw-semibold text-primary">
+            <i class="bi bi-building me-1"></i>{{ userEntidadNombre || 'Sin entidad asignada — Contacta al administrador' }}
+          </div>
+          <select *ngIf="isAdmin" class="form-select" [(ngModel)]="nuevaEntidadId">
+            <option [ngValue]="null">-- Seleccione la entidad --</option>
+            <option *ngFor="let e of entidadesFilter" [ngValue]="e.id">{{ e.nombre }}</option>
+          </select>
+        </div>
+
+        <form [formGroup]="nuevaForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Título / Asunto <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" formControlName="titulo"
+              placeholder="Describe brevemente el problema..." maxlength="200" />
+            <div class="text-danger small mt-1"
+              *ngIf="nuevaForm.get('titulo')?.touched && nuevaForm.get('titulo')?.invalid">
+              Mínimo 3 caracteres, máximo 200
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Descripción detallada <span class="text-danger">*</span></label>
+            <textarea class="form-control" formControlName="texto" rows="5"
+              placeholder="Describe detalladamente el problema, pasos para reproducirlo, etc..."></textarea>
+            <div class="text-danger small mt-1"
+              *ngIf="nuevaForm.get('texto')?.touched && nuevaForm.get('texto')?.invalid">
+              Mínimo 5 caracteres
+            </div>
+          </div>
+        </form>
+
+        <!-- Adjuntos -->
+        <div class="mb-2">
+          <label class="form-label fw-semibold"><i class="bi bi-paperclip me-1"></i>Archivos adjuntos <span class="text-muted fw-normal small">— opcional</span></label>
+          <div class="adj-drop-zone">
+            <i class="bi bi-cloud-arrow-up" style="font-size:1.5rem;display:block;margin-bottom:6px;"></i>
+            Imágenes, PDF o Word
+            <label class="btn btn-outline-primary btn-sm d-block mt-2" style="width:fit-content;margin:0 auto;">
+              <i class="bi bi-folder2-open me-1"></i>Seleccionar archivos
+              <input type="file" multiple class="d-none"
+                accept="image/*,.pdf,.doc,.docx"
+                (change)="onNuevaFilesChange($event)" />
+            </label>
+          </div>
+          <div class="mt-2" *ngIf="nuevaFiles.length">
+            <div *ngFor="let f of nuevaFiles; let i = index" class="reply-file-chip mb-1">
+              <i class="bi bi-paperclip"></i>
+              <span class="small">{{ f.name }}</span>
+              <small class="text-muted">({{ formatFileSize(f.size) }})</small>
+              <button class="btn btn-link p-0 text-danger ms-auto" style="font-size:0.75rem" (click)="removeNuevaFile(i)">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="guardarNuevaSolicitud()" [disabled]="savingNew">
+          <span *ngIf="savingNew" class="spinner-border spinner-border-sm me-1"></span>
+          <i class="bi bi-send me-1" *ngIf="!savingNew"></i>
+          {{ savingNew ? 'Enviando...' : 'Enviar Solicitud' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Ver imagen ════════════════════════════════════════════════════ -->
+<div class="modal fade" id="imagenViewerModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title"><i class="bi bi-image me-2"></i>Imagen adjunta</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-2">
+        <img *ngIf="imagenViewer" [src]="imagenViewer" class="img-fluid rounded" style="max-height:80vh;" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Cambio de Contraseña ══════════════════════════════════════════ -->
+<div class="modal fade" id="cambioClaveModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key me-2"></i>Cambiar Contraseña</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger py-2 small" *ngIf="claveError">
+          <i class="bi bi-exclamation-circle me-1"></i>{{ claveError }}
+        </div>
+        <div class="alert alert-success py-2 small" *ngIf="claveSuccess">
+          <i class="bi bi-check-circle me-1"></i>{{ claveSuccess }}
+        </div>
+        <form [formGroup]="cambioClaveForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Nueva Contraseña</label>
+            <input type="password" class="form-control" formControlName="password" placeholder="Mínimo 6 caracteres" />
+            <div class="text-danger small mt-1"
+              *ngIf="cambioClaveForm.get('password')?.touched && cambioClaveForm.get('password')?.invalid">
+              Mínimo 6 caracteres
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Repetir Contraseña</label>
+            <input type="password" class="form-control" formControlName="confirmPassword" placeholder="Repita la contraseña" />
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="guardarCambioClave()" [disabled]="savingClave">
+          <span *ngIf="savingClave" class="spinner-border spinner-border-sm me-1"></span>
+          {{ savingClave ? 'Guardando...' : 'Cambiar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Exportar Excel ════════════════════════════════════════════════ -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="exportForm">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">Fecha Desde</label>
+              <input type="date" class="form-control" formControlName="desde" />
+              <div class="text-danger small mt-1"
+                *ngIf="exportForm.get('desde')?.touched && exportForm.get('desde')?.invalid">Requerido</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">Fecha Hasta</label>
+              <input type="date" class="form-control" formControlName="hasta" />
+              <div class="text-danger small mt-1"
+                *ngIf="exportForm.get('hasta')?.touched && exportForm.get('hasta')?.invalid">Requerido</div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Filtro de entidades (solo si hay más de una) -->
+        <div class="mt-3" *ngIf="entidadesFilter.length > 1">
+          <label class="form-label fw-semibold">Entidades <span class="text-muted fw-normal small">— vacío = todas</span></label>
+          <div class="border rounded p-2" style="max-height:150px;overflow-y:auto;">
+            <div class="form-check" *ngFor="let e of entidadesFilter">
+              <input class="form-check-input" type="checkbox"
+                [id]="'exp-'+e.id"
+                [checked]="isExportEntidadChecked(e.id)"
+                (change)="toggleExportEntidad(e.id)" />
+              <label class="form-check-label small" [for]="'exp-'+e.id">{{ e.nombre }}</label>
+            </div>
+          </div>
+          <div class="form-text">Seleccionadas: {{ exportEntidadIds.length || 'Todas' }}</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success btn-sm" (click)="exportarExcel()" [disabled]="exporting">
+          <span *ngIf="exporting" class="spinner-border spinner-border-sm me-1"></span>
+          <i class="bi bi-download me-1" *ngIf="!exporting"></i>
+          {{ exporting ? 'Exportando...' : 'Descargar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

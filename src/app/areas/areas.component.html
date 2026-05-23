@@ -1,0 +1,179 @@
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background: #1e40af;">
+  <div class="container-fluid px-4">
+    <span class="navbar-brand"><i class="bi bi-diagram-3 me-2"></i>Gestión de Áreas</span>
+    <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+      <button class="btn btn-outline-light btn-sm" routerLink="/entidades">
+        <i class="bi bi-building me-1"></i>Entidades
+      </button>
+      <button class="btn btn-outline-light btn-sm" routerLink="/users">
+        <i class="bi bi-people me-1"></i>Usuarios
+      </button>
+      <button class="btn btn-outline-light btn-sm" routerLink="/dashboard">
+        <i class="bi bi-arrow-left me-1"></i>Dashboard
+      </button>
+      <button class="btn btn-outline-light btn-sm" (click)="logout()">
+        <i class="bi bi-box-arrow-right me-1"></i>Salir
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-4 py-4">
+
+  <div class="alert alert-success alert-dismissible py-2" *ngIf="successMsg">
+    <i class="bi bi-check-circle me-1"></i>{{ successMsg }}
+    <button type="button" class="btn-close py-2" (click)="successMsg=''"></button>
+  </div>
+  <div class="alert alert-danger alert-dismissible py-2" *ngIf="error">
+    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+    <button type="button" class="btn-close py-2" (click)="error=''"></button>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h5 class="mb-0 fw-bold" style="color:#1e40af;">
+        <i class="bi bi-diagram-3-fill me-2"></i>Áreas / Oficinas
+      </h5>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <!-- Filtro por entidad -->
+        <select class="form-select form-select-sm" style="width:220px"
+          [(ngModel)]="filtroEntidadId" (change)="onFiltroChange()">
+          <option [ngValue]="null">— Todas las entidades —</option>
+          <option *ngFor="let e of entidades" [ngValue]="e.id">{{ e.nombre }}</option>
+        </select>
+        <button class="btn btn-primary btn-sm" (click)="openCreate()">
+          <i class="bi bi-plus-lg me-1"></i>Nueva Área
+        </button>
+      </div>
+    </div>
+
+    <div class="text-center py-5" *ngIf="loading">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+
+    <div class="table-responsive" *ngIf="!loading">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nombre del área / oficina</th>
+            <th>Entidad</th>
+            <th>Creación</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of areasFiltradas">
+            <td class="text-muted fw-bold">{{ a.id }}</td>
+            <td class="fw-semibold">{{ a.nombre }}</td>
+            <td>
+              <span class="badge bg-light text-dark border">
+                <i class="bi bi-building me-1"></i>{{ a.entidad?.nombre ?? getNombreEntidad(a.entidadId) }}
+              </span>
+            </td>
+            <td class="small">{{ a.createdAt | date:'dd/MM/yyyy' }}</td>
+            <td class="text-center" style="white-space:nowrap">
+              <button class="btn btn-outline-secondary btn-sm me-1" title="Editar" (click)="openEdit(a)">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-outline-danger btn-sm" title="Eliminar" (click)="eliminar(a)">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="!areasFiltradas.length">
+            <td colspan="5" class="text-center text-muted py-4">
+              {{ filtroEntidadId ? 'Esta entidad no tiene áreas registradas' : 'No hay áreas registradas' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Crear Área ══════════════════════════════════════════════════════ -->
+<div class="modal fade" id="createModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nueva Área / Oficina</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="createForm">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Entidad / Empresa <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="entidadId">
+                <option [ngValue]="null" disabled>-- Seleccione una entidad --</option>
+                <option *ngFor="let e of entidades" [ngValue]="e.id">{{ e.nombre }}</option>
+              </select>
+              <div class="text-danger small mt-1"
+                *ngIf="createForm.get('entidadId')?.touched && createForm.get('entidadId')?.invalid">
+                Debe seleccionar una entidad
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Nombre del área / oficina <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="nombre"
+                placeholder="Ej: Contabilidad, Presupuesto, Tesorería..." />
+              <div class="text-danger small mt-1"
+                *ngIf="createForm.get('nombre')?.touched && createForm.get('nombre')?.invalid">
+                Mínimo 2 caracteres
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="guardarArea()" [disabled]="saving">
+          <span *ngIf="saving" class="spinner-border spinner-border-sm me-1"></span>
+          {{ saving ? 'Guardando...' : 'Crear Área' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: Editar Área ════════════════════════════════════════════════════ -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Editar Área</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form [formGroup]="editForm">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">Entidad / Empresa <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="entidadId">
+                <option [ngValue]="null" disabled>-- Seleccione --</option>
+                <option *ngFor="let e of entidades" [ngValue]="e.id">{{ e.nombre }}</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="nombre" />
+              <div class="text-danger small mt-1"
+                *ngIf="editForm.get('nombre')?.touched && editForm.get('nombre')?.invalid">
+                Mínimo 2 caracteres
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="guardarEdicion()" [disabled]="savingEdit">
+          <span *ngIf="savingEdit" class="spinner-border spinner-border-sm me-1"></span>
+          {{ savingEdit ? 'Guardando...' : 'Guardar Cambios' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
