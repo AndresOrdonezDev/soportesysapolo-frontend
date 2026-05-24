@@ -188,7 +188,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (term) {
       result = result.filter(s =>
         s.titulo?.toLowerCase().includes(term) ||
-        s.motivo?.toLowerCase().includes(term) ||
         s.usuario?.nombre?.toLowerCase().includes(term) ||
         s.entidad?.nombre?.toLowerCase().includes(term)
       );
@@ -462,7 +461,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (!this.soportes.find(x => x.id === s.id)) {
           this.soportes = [s, ...this.soportes];
         }
-        this.showWsToast(`Nueva solicitud: ${s.titulo || s.motivo || '#' + s.id}`);
+        this.showWsToast(`Nueva solicitud: ${s.titulo || '#' + s.id}`);
       })
     );
 

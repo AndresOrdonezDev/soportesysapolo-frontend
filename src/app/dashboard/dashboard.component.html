@@ -1,8 +1,9 @@
 <!-- ═══ NAVBAR ═══════════════════════════════════════════════════════════════ -->
 <nav class="navbar navbar-expand-lg navbar-dark" style="background: #1e40af;">
   <div class="container-fluid px-4">
-    <span class="navbar-brand">
-      <i class="bi-chat-dots-fill me-2"></i>SysApolo — Soporte
+    <span class="navbar-brand d-flex align-items-center gap-2">
+      <img src="assets/logo-sys.png" alt="SysApolo" style="height: 32px; object-fit: contain;" />
+      SysApolo — Soporte
     </span>
     <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
       <span class="text-white nav-user-info me-1">
@@ -150,7 +151,7 @@
               <i class="bi bi-chevron-right me-1 small text-muted"
                 [class.bi-chevron-down]="selectedSoporteId === s.id"
                 [class.bi-chevron-right]="selectedSoporteId !== s.id"></i>
-              #{{ s.id }} — {{ s.titulo || s.motivo || '(sin título)' }}
+              #{{ s.id }} — {{ s.titulo || '(sin título)' }}
             </span>
             <div class="d-flex align-items-center gap-2 flex-shrink-0">
               <span class="badge-pendiente-new" *ngIf="s.estado === 'pendiente'">
@@ -168,6 +169,9 @@
           <div class="ticket-meta">
             <span *ngIf="s.entidad"><i class="bi bi-building me-1"></i>{{ s.entidad.nombre }}</span>
             <span *ngIf="isAdmin || isSoporte"><i class="bi bi-person me-1"></i>{{ s.usuario.nombre }}</span>
+            <a *ngIf="(isAdmin || isSoporte) && s.usuario.telefono" [href]="'tel:'+s.usuario.telefono" class="text-decoration-none text-success" (click)="$event.stopPropagation()">
+              <i class="bi bi-telephone-fill me-1"></i>{{ s.usuario.telefono }}
+            </a>
             <span><i class="bi bi-calendar me-1"></i>{{ formatDate(s.fechaSolicitud) }}</span>
             <span class="text-muted"><i class="bi bi-chat me-1"></i>{{ s.mensajes.length }} mensaje(s)</span>
           </div>
@@ -200,6 +204,9 @@
                 {{ msg.usuario.nombre }}
                 <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem" *ngIf="msg.usuario.role==='soporte'">Soporte</span>
                 <span class="badge bg-success ms-1" style="font-size:0.65rem" *ngIf="msg.usuario.role==='admin'">Admin</span>
+                <span *ngIf="msg.usuario.scope?.[0]?.area?.nombre && msg.usuario.role==='user'" class="text-muted ms-1" style="font-size:0.65rem;">
+                  <i class="bi bi-diagram-3 me-1"></i>{{ msg.usuario.scope![0].area!.nombre }}
+                </span>
               </div>
               <div class="msg-bubble">{{ msg.texto }}</div>
 
@@ -378,14 +385,14 @@
 
 <!-- ═══ MODAL: Ver imagen ════════════════════════════════════════════════════ -->
 <div class="modal fade" id="imagenViewerModal" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
+  <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header py-2">
         <h6 class="modal-title"><i class="bi bi-image me-2"></i>Imagen adjunta</h6>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body text-center p-2">
-        <img *ngIf="imagenViewer" [src]="imagenViewer" class="img-fluid rounded" style="max-height:80vh;" />
+      <div class="modal-body d-flex align-items-center justify-content-center p-2" style="background:#000;">
+        <img *ngIf="imagenViewer" [src]="imagenViewer" style="max-width:100%;max-height:100%;object-fit:contain;" />
       </div>
     </div>
   </div>

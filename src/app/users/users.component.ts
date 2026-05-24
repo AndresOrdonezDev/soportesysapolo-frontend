@@ -19,6 +19,31 @@ export class UsersComponent implements OnInit {
   error = '';
   successMsg = '';
 
+  searchTerm = '';
+  pageSize = 10;
+  currentPage = 1;
+
+  get filteredUsers(): User[] {
+    const term = this.searchTerm.toLowerCase().trim();
+    if (!term) return this.users;
+    return this.users.filter(u => {
+      const inName   = u.nombre.toLowerCase().includes(term);
+      const inAlias  = u.alias.toLowerCase().includes(term);
+      const inPhone  = (u.telefono ?? '').toLowerCase().includes(term);
+      const inEntity = u.scope?.some(s => s.entidad?.nombre.toLowerCase().includes(term)) ?? false;
+      return inName || inAlias || inPhone || inEntity;
+    });
+  }
+
+  get totalPages(): number { return Math.max(1, Math.ceil(this.filteredUsers.length / this.pageSize)); }
+
+  get pagedUsers(): User[] {
+    const start = (this.currentPage - 1) * this.pageSize;
+    return this.filteredUsers.slice(start, start + this.pageSize);
+  }
+
+  get pages(): number[] { return Array.from({ length: this.totalPages }, (_, i) => i + 1); }
+
   // ── Entidades y áreas disponibles ─────────────────────────────────────────
   entidades: Entidad[] = [];
 
@@ -91,7 +116,7 @@ export class UsersComponent implements OnInit {
   // ── Helpers de scope ───────────────────────────────────────────────────────
 
   getScopeLabel(user: User): string {
-    if (!user.scope?.length) return user.area ?? '—';
+    if (!user.scope?.length) return '—';
     if (user.role === 'soporte') {
       return user.scope.map(s => s.entidad?.nombre ?? `#${s.entidadId}`).join(', ');
     }

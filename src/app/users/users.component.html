@@ -30,13 +30,25 @@
   </div>
 
   <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="mb-0 fw-bold" style="color:#1e40af;">
-        <i class="bi bi-people-fill me-2"></i>Listado de Usuarios
-      </h5>
-      <button class="btn btn-primary btn-sm" (click)="openCreate()">
-        <i class="bi bi-person-plus me-1"></i>Nuevo Usuario
-      </button>
+    <div class="card-header">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h5 class="mb-0 fw-bold" style="color:#1e40af;">
+          <i class="bi bi-people-fill me-2"></i>Listado de Usuarios
+        </h5>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div class="input-group input-group-sm" style="width:260px">
+            <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+            <input type="text" class="form-control" placeholder="Buscar nombre, entidad, teléfono..."
+              [(ngModel)]="searchTerm" (ngModelChange)="currentPage = 1" />
+            <button *ngIf="searchTerm" class="btn btn-outline-secondary" (click)="searchTerm=''; currentPage=1">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+          <button class="btn btn-primary btn-sm" (click)="openCreate()">
+            <i class="bi bi-person-plus me-1"></i>Nuevo Usuario
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="text-center py-5" *ngIf="loading">
@@ -59,7 +71,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let u of users">
+          <tr *ngFor="let u of pagedUsers">
             <td class="text-muted fw-bold">{{ u.id }}</td>
             <td>{{ u.nombre }}</td>
             <td><code>{{ u.alias }}</code></td>
@@ -96,9 +108,8 @@
                     </span>
                   </ng-container>
                 </ng-container>
-                <!-- Sin scope asignado: mostrar area legado -->
                 <span *ngIf="!u.scope?.length" class="text-muted fst-italic small">
-                  {{ u.area || 'Sin asignar' }}
+                  Sin asignar
                 </span>
               </ng-container>
             </td>
@@ -120,11 +131,33 @@
               </button>
             </td>
           </tr>
-          <tr *ngIf="users.length===0">
-            <td colspan="9" class="text-center text-muted py-4">No hay usuarios registrados</td>
+          <tr *ngIf="filteredUsers.length===0">
+            <td colspan="9" class="text-center text-muted py-4">
+              {{ users.length === 0 ? 'No hay usuarios registrados' : 'Sin resultados para la búsqueda' }}
+            </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Paginador -->
+    <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top flex-wrap gap-2" *ngIf="!loading && filteredUsers.length > pageSize">
+      <small class="text-muted">
+        Mostrando {{ (currentPage-1)*pageSize+1 }}–{{ currentPage*pageSize > filteredUsers.length ? filteredUsers.length : currentPage*pageSize }} de {{ filteredUsers.length }}
+      </small>
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item" [class.disabled]="currentPage===1">
+            <button class="page-link" (click)="currentPage=currentPage-1">‹</button>
+          </li>
+          <li class="page-item" *ngFor="let p of pages" [class.active]="p===currentPage">
+            <button class="page-link" (click)="currentPage=p">{{ p }}</button>
+          </li>
+          <li class="page-item" [class.disabled]="currentPage===totalPages">
+            <button class="page-link" (click)="currentPage=currentPage+1">›</button>
+          </li>
+        </ul>
+      </nav>
     </div>
   </div>
 </div>

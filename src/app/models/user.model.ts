@@ -1,24 +1,3 @@
-export type UserArea =
-  | 'Contabilidad'
-  | 'Presupuesto'
-  | 'Despacho'
-  | 'Tesorería'
-  | 'Rentas'
-  | 'Pensiones'
-  | 'General'
-  | 'Otra';
-
-export const USER_AREAS: UserArea[] = [
-  'Contabilidad',
-  'Presupuesto',
-  'Despacho',
-  'Tesorería',
-  'Rentas',
-  'Pensiones',
-  'General',
-  'Otra',
-];
-
 export interface ScopeItem {
   id: number;
   usuarioId: number;
@@ -33,7 +12,6 @@ export interface User {
   nombre: string;
   alias: string;
   role: 'admin' | 'soporte' | 'user';
-  area?: UserArea;
   telefono?: string;
   activo?: boolean;
   createdAt?: string;

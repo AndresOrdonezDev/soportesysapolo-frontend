@@ -22,7 +22,6 @@ export interface SoporteMensaje {
 export interface Soporte {
   id: number;
   titulo?: string;
-  motivo?: string;
   estado: 'pendiente' | 'resuelto';
   fechaSolicitud: string;
   usuarioId: number;
