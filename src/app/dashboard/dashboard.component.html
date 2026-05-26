@@ -25,6 +25,11 @@
         </button>
       </ng-container>
 
+      <!-- Admin y Soporte: casos internos -->
+      <button *ngIf="isAdmin || isSoporte" class="btn btn-outline-light btn-sm" routerLink="/casos-internos">
+        <i class="bi bi-chat-square-text me-1"></i>Casos Internos
+      </button>
+
       <!-- Admin y Soporte: exportar Excel -->
       <button *ngIf="isAdmin || isSoporte" class="btn btn-outline-light btn-sm" (click)="openExportModal()">
         <i class="bi bi-file-earmark-excel me-1"></i>Excel

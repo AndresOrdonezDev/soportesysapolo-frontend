@@ -5,13 +5,16 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { UsersComponent } from './users/users.component';
 import { EntidadesComponent } from './entidades/entidades.component';
 import { AreasComponent } from './areas/areas.component';
+import { CasosInternosComponent } from './casos-internos/casos-internos.component';
 import { AuthGuard } from './guards/auth.guard';
 import { AdminGuard } from './guards/admin.guard';
+import { SoporteStaffGuard } from './guards/soporte-staff.guard';
 
 const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
   { path: 'login', component: LoginComponent },
   { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard] },
+  { path: 'casos-internos', component: CasosInternosComponent, canActivate: [AuthGuard, SoporteStaffGuard] },
   { path: 'users', component: UsersComponent, canActivate: [AuthGuard, AdminGuard] },
   { path: 'entidades', component: EntidadesComponent, canActivate: [AuthGuard, AdminGuard] },
   { path: 'areas', component: AreasComponent, canActivate: [AuthGuard, AdminGuard] },

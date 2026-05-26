@@ -10,6 +10,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { UsersComponent } from './users/users.component';
 import { EntidadesComponent } from './entidades/entidades.component';
 import { AreasComponent } from './areas/areas.component';
+import { CasosInternosComponent } from './casos-internos/casos-internos.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
 @NgModule({
@@ -20,6 +21,7 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     UsersComponent,
     EntidadesComponent,
     AreasComponent,
+    CasosInternosComponent,
   ],
   imports: [
     BrowserModule,
