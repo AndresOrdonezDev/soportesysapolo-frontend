@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../services/auth.service';
@@ -32,6 +32,9 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
 
   replyText = '';
   replyFiles: File[] = [];
+  replyFilePreviews = new Map<File, string>();
+  replyDragOver = false;
+  private replyDragCounter = 0;
   sendingReply = false;
   replyError = '';
 
@@ -39,6 +42,9 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
   nuevaVisibilidad: 'todos' | 'individual' = 'todos';
   nuevoAsignadoAIds: number[] = [];
   nuevoFiles: File[] = [];
+  nuevoFilePreviews = new Map<File, string>();
+  nuevoCasoDragOver = false;
+  private nuevoCasoDragCounter = 0;
   savingNuevo = false;
 
   reasignarCaso: CasoInterno | null = null;
@@ -85,6 +91,8 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
     this.wsSubs.forEach(s => s.unsubscribe());
     this.socketService.disconnect();
     this.imageCache.forEach(url => URL.revokeObjectURL(url));
+    this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+    this.nuevoFilePreviews.forEach(url => URL.revokeObjectURL(url));
   }
 
   get isAdmin(): boolean { return this.currentUser?.role === 'admin'; }
@@ -139,6 +147,8 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
       this.selectedCaso = null;
       this.replyText = '';
       this.replyFiles = [];
+      this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+      this.replyFilePreviews.clear();
       this.replyError = '';
       return;
     }
@@ -147,6 +157,8 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
     this.loadingThread = true;
     this.replyText = '';
     this.replyFiles = [];
+    this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+    this.replyFilePreviews.clear();
     this.replyError = '';
 
     this.casosService.getOne(c.id).subscribe({
@@ -188,12 +200,63 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
   onReplyFilesChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files) {
-      this.replyFiles = [...this.replyFiles, ...Array.from(input.files)];
+      Array.from(input.files).forEach(f => {
+        this.replyFiles.push(f);
+        if (f.type.startsWith('image/')) this.replyFilePreviews.set(f, URL.createObjectURL(f));
+      });
       input.value = '';
     }
   }
 
-  removeReplyFile(i: number): void { this.replyFiles.splice(i, 1); }
+  removeReplyFile(i: number): void {
+    const f = this.replyFiles[i];
+    const url = this.replyFilePreviews.get(f);
+    if (url) { URL.revokeObjectURL(url); this.replyFilePreviews.delete(f); }
+    this.replyFiles.splice(i, 1);
+  }
+
+  @HostListener('document:paste', ['$event'])
+  onDocumentPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (!item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      if (this.isModalOpen('nuevoCasoModal')) {
+        this.nuevoFiles.push(file);
+        this.nuevoFilePreviews.set(file, URL.createObjectURL(file));
+      } else if (this.selectedCaso) {
+        this.replyFiles.push(file);
+        this.replyFilePreviews.set(file, URL.createObjectURL(file));
+      }
+    }
+  }
+
+  private isModalOpen(id: string): boolean {
+    return document.getElementById(id)?.classList.contains('show') ?? false;
+  }
+
+  onReplyDragEnter(): void {
+    this.replyDragCounter++;
+    this.replyDragOver = true;
+  }
+
+  onReplyDragLeave(): void {
+    if (--this.replyDragCounter === 0) this.replyDragOver = false;
+  }
+
+  onReplyDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.replyDragCounter = 0;
+    this.replyDragOver = false;
+    Array.from(event.dataTransfer?.files ?? []).forEach(f => {
+      this.replyFiles.push(f);
+      if (f.type.startsWith('image/')) this.replyFilePreviews.set(f, URL.createObjectURL(f));
+    });
+  }
+
+  getReplyPreviewUrl(file: File): string { return this.replyFilePreviews.get(file) ?? ''; }
 
   enviarRespuesta(): void {
     if (!this.replyText.trim() || !this.selectedCasoId) return;
@@ -209,6 +272,8 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
         this.selectedCaso = updated;
         this.replyText = '';
         this.replyFiles = [];
+        this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+        this.replyFilePreviews.clear();
         this.sendingReply = false;
         this.loadThreadImages(updated);
         const idx = this.casos.findIndex(c => c.id === updated.id);
@@ -263,6 +328,8 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
   openNuevoCaso(): void {
     this.nuevoForm.reset();
     this.nuevoFiles = [];
+    this.nuevoFilePreviews.forEach(url => URL.revokeObjectURL(url));
+    this.nuevoFilePreviews.clear();
     this.nuevaVisibilidad = 'todos';
     this.nuevoAsignadoAIds = [];
     new bootstrap.Modal(document.getElementById('nuevoCasoModal')).show();
@@ -281,12 +348,42 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
   onNuevoFilesChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files) {
-      this.nuevoFiles = [...this.nuevoFiles, ...Array.from(input.files)];
+      Array.from(input.files).forEach(f => {
+        this.nuevoFiles.push(f);
+        if (f.type.startsWith('image/')) this.nuevoFilePreviews.set(f, URL.createObjectURL(f));
+      });
       input.value = '';
     }
   }
 
-  removeNuevoFile(i: number): void { this.nuevoFiles.splice(i, 1); }
+  removeNuevoFile(i: number): void {
+    const f = this.nuevoFiles[i];
+    const url = this.nuevoFilePreviews.get(f);
+    if (url) { URL.revokeObjectURL(url); this.nuevoFilePreviews.delete(f); }
+    this.nuevoFiles.splice(i, 1);
+  }
+
+
+  onNuevoCasoDragEnter(): void {
+    this.nuevoCasoDragCounter++;
+    this.nuevoCasoDragOver = true;
+  }
+
+  onNuevoCasoDragLeave(): void {
+    if (--this.nuevoCasoDragCounter === 0) this.nuevoCasoDragOver = false;
+  }
+
+  onNuevoCasoDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.nuevoCasoDragCounter = 0;
+    this.nuevoCasoDragOver = false;
+    Array.from(event.dataTransfer?.files ?? []).forEach(f => {
+      this.nuevoFiles.push(f);
+      if (f.type.startsWith('image/')) this.nuevoFilePreviews.set(f, URL.createObjectURL(f));
+    });
+  }
+
+  getNuevoPreviewUrl(file: File): string { return this.nuevoFilePreviews.get(file) ?? ''; }
 
   guardarNuevoCaso(): void {
     if (this.nuevoForm.invalid) { this.nuevoForm.markAllAsTouched(); return; }

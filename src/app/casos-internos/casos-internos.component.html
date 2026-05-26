@@ -227,6 +227,7 @@
                     (click)="downloadFile(adj)">
                     <i class="bi bi-file-earmark-pdf me-1" *ngIf="adj.tipo==='pdf'"></i>
                     <i class="bi bi-file-earmark-word me-1" *ngIf="adj.tipo==='word'"></i>
+                    <i class="bi bi-file-earmark-excel me-1" *ngIf="adj.tipo==='excel'"></i>
                     <i class="bi bi-file-earmark me-1" *ngIf="adj.tipo==='otro'"></i>
                     {{ adj.nombre }}
                     <small class="text-muted ms-1">({{ formatFileSize(adj.tamanio) }})</small>
@@ -244,16 +245,22 @@
               <div class="msg-avatar flex-shrink-0" [class]="getAvatarClass(currentUser?.role ?? '')">
                 {{ getInitials(currentUser?.nombre ?? '') }}
               </div>
-              <div class="flex-grow-1">
+              <div class="flex-grow-1"
+                (dragenter)="onReplyDragEnter()"
+                (dragleave)="onReplyDragLeave()"
+                (dragover)="$event.preventDefault()"
+                (drop)="onReplyDrop($event)"
+                [class.reply-drag-over]="replyDragOver">
                 <textarea class="form-control form-control-sm"
                   rows="3"
-                  placeholder="Escribe tu mensaje..."
+                  placeholder="Escribe tu mensaje... (pega imágenes con Ctrl+V)"
                   [(ngModel)]="replyText"
                   style="resize:none;border-radius:8px;"></textarea>
 
                 <div class="reply-files-list" *ngIf="replyFiles.length">
                   <div *ngFor="let f of replyFiles; let i = index" class="reply-file-chip">
-                    <i class="bi bi-paperclip"></i>
+                    <img *ngIf="getReplyPreviewUrl(f)" [src]="getReplyPreviewUrl(f)" class="chip-thumb" />
+                    <i class="bi bi-paperclip" *ngIf="!getReplyPreviewUrl(f)"></i>
                     <span>{{ f.name }}</span>
                     <small class="text-muted">({{ formatFileSize(f.size) }})</small>
                     <button class="btn btn-link p-0 text-danger ms-1" style="font-size:0.75rem"
@@ -269,7 +276,7 @@
                   <label class="btn btn-outline-secondary btn-sm" title="Adjuntar archivo">
                     <i class="bi bi-paperclip"></i> Adjuntar
                     <input type="file" multiple class="d-none"
-                      accept="image/*,.pdf,.doc,.docx"
+                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                       (change)="onReplyFilesChange($event)" />
                   </label>
                   <button class="btn btn-primary btn-sm"
@@ -398,19 +405,25 @@
             <i class="bi bi-paperclip me-1"></i>Archivos adjuntos
             <span class="text-muted fw-normal small">— opcional</span>
           </label>
-          <div class="adj-drop-zone">
+          <div class="adj-drop-zone"
+            (dragenter)="onNuevoCasoDragEnter()"
+            (dragleave)="onNuevoCasoDragLeave()"
+            (dragover)="$event.preventDefault()"
+            (drop)="onNuevoCasoDrop($event)"
+            [class.drag-over]="nuevoCasoDragOver">
             <i class="bi bi-cloud-arrow-up" style="font-size:1.5rem;display:block;margin-bottom:6px;"></i>
-            Imágenes, PDF o Word
+            Imágenes, PDF, Word o Excel — arrastra aquí o pega con Ctrl+V
             <label class="btn btn-outline-primary btn-sm d-block mt-2" style="width:fit-content;margin:0 auto;">
               <i class="bi bi-folder2-open me-1"></i>Seleccionar archivos
               <input type="file" multiple class="d-none"
-                accept="image/*,.pdf,.doc,.docx"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
                 (change)="onNuevoFilesChange($event)" />
             </label>
           </div>
           <div class="mt-2" *ngIf="nuevoFiles.length">
             <div *ngFor="let f of nuevoFiles; let i = index" class="reply-file-chip mb-1">
-              <i class="bi bi-paperclip"></i>
+              <img *ngIf="getNuevoPreviewUrl(f)" [src]="getNuevoPreviewUrl(f)" class="chip-thumb" />
+              <i class="bi bi-paperclip" *ngIf="!getNuevoPreviewUrl(f)"></i>
               <span class="small">{{ f.name }}</span>
               <small class="text-muted">({{ formatFileSize(f.size) }})</small>
               <button class="btn btn-link p-0 text-danger ms-auto" style="font-size:0.75rem"

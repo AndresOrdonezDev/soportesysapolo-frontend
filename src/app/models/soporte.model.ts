@@ -4,7 +4,7 @@ export interface SoporteAdjunto {
   id: number;
   mensajeId: number;
   nombre: string;
-  tipo: 'image' | 'pdf' | 'word' | 'otro';
+  tipo: 'image' | 'pdf' | 'word' | 'excel' | 'otro';
   mimeType: string;
   tamanio: number;
 }

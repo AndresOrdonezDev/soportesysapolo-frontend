@@ -584,7 +584,29 @@ body {
   color: #475569;
   font-size: 0.85rem;
 }
-.adj-drop-zone:hover { border-color: #1e40af; background: #dbeafe; }
+.adj-drop-zone:hover,
+.adj-drop-zone.drag-over {
+  border-color: #1e40af;
+  background: #dbeafe;
+}
+
+/* ── Drag-over en reply box ──────────────────────────── */
+.reply-drag-over {
+  background: rgba(59, 130, 246, 0.06);
+  border-radius: 8px;
+  outline: 2px dashed #93c5fd;
+  outline-offset: 2px;
+}
+
+/* ── Thumbnail en chips de archivo ───────────────────── */
+.chip-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
 
 /* Cursor pointer utility */
 .cursor-pointer { cursor: pointer; }

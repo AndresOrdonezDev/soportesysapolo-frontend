@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../services/auth.service';
@@ -41,6 +41,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Reply
   replyText = '';
   replyFiles: File[] = [];
+  replyFilePreviews = new Map<File, string>();
+  replyDragOver = false;
+  private replyDragCounter = 0;
   sendingReply = false;
   replyError = '';
 
@@ -48,6 +51,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   nuevaForm!: FormGroup;
   nuevaEntidadId: number | null = null;
   nuevaFiles: File[] = [];
+  nuevaFilePreviews = new Map<File, string>();
+  nuevaDragOver = false;
+  private nuevaDragCounter = 0;
   savingNew = false;
 
   // Scope del usuario actual (para user y soporte)
@@ -104,8 +110,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.wsSubs.forEach(s => s.unsubscribe());
     this.socketService.disconnect();
-    // Liberar object URLs
     this.imageCache.forEach(url => URL.revokeObjectURL(url));
+    this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+    this.nuevaFilePreviews.forEach(url => URL.revokeObjectURL(url));
   }
 
   // ── Roles ────────────────────────────────────────────────────────────────
@@ -214,6 +221,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.selectedSoporte = null;
       this.replyText = '';
       this.replyFiles = [];
+      this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+      this.replyFilePreviews.clear();
       this.replyError = '';
       return;
     }
@@ -222,6 +231,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadingThread = true;
     this.replyText = '';
     this.replyFiles = [];
+    this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+    this.replyFilePreviews.clear();
     this.replyError = '';
 
     this.soportesService.getOne(s.id).subscribe({
@@ -274,12 +285,63 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onReplyFilesChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files) {
-      this.replyFiles = [...this.replyFiles, ...Array.from(input.files)];
+      Array.from(input.files).forEach(f => {
+        this.replyFiles.push(f);
+        if (f.type.startsWith('image/')) this.replyFilePreviews.set(f, URL.createObjectURL(f));
+      });
       input.value = '';
     }
   }
 
-  removeReplyFile(i: number): void { this.replyFiles.splice(i, 1); }
+  removeReplyFile(i: number): void {
+    const f = this.replyFiles[i];
+    const url = this.replyFilePreviews.get(f);
+    if (url) { URL.revokeObjectURL(url); this.replyFilePreviews.delete(f); }
+    this.replyFiles.splice(i, 1);
+  }
+
+  @HostListener('document:paste', ['$event'])
+  onDocumentPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (!item.type.startsWith('image/')) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      if (this.isModalOpen('nuevaSolicitudModal')) {
+        this.nuevaFiles.push(file);
+        this.nuevaFilePreviews.set(file, URL.createObjectURL(file));
+      } else if (this.selectedSoporte) {
+        this.replyFiles.push(file);
+        this.replyFilePreviews.set(file, URL.createObjectURL(file));
+      }
+    }
+  }
+
+  private isModalOpen(id: string): boolean {
+    return document.getElementById(id)?.classList.contains('show') ?? false;
+  }
+
+  onReplyDragEnter(): void {
+    this.replyDragCounter++;
+    this.replyDragOver = true;
+  }
+
+  onReplyDragLeave(): void {
+    if (--this.replyDragCounter === 0) this.replyDragOver = false;
+  }
+
+  onReplyDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.replyDragCounter = 0;
+    this.replyDragOver = false;
+    Array.from(event.dataTransfer?.files ?? []).forEach(f => {
+      this.replyFiles.push(f);
+      if (f.type.startsWith('image/')) this.replyFilePreviews.set(f, URL.createObjectURL(f));
+    });
+  }
+
+  getReplyPreviewUrl(file: File): string { return this.replyFilePreviews.get(file) ?? ''; }
 
   enviarRespuesta(): void {
     if (!this.replyText.trim() || !this.selectedSoporteId) return;
@@ -295,6 +357,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.selectedSoporte = updated;
         this.replyText = '';
         this.replyFiles = [];
+        this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
+        this.replyFilePreviews.clear();
         this.sendingReply = false;
         this.loadThreadImages(updated);
         // Actualizar en la lista local
@@ -357,6 +421,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openNuevaSolicitud(): void {
     this.nuevaForm.reset();
     this.nuevaFiles = [];
+    this.nuevaFilePreviews.forEach(url => URL.revokeObjectURL(url));
+    this.nuevaFilePreviews.clear();
     this.nuevaEntidadId = null;
     new bootstrap.Modal(document.getElementById('nuevaSolicitudModal')).show();
   }
@@ -364,12 +430,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onNuevaFilesChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files) {
-      this.nuevaFiles = [...this.nuevaFiles, ...Array.from(input.files)];
+      Array.from(input.files).forEach(f => {
+        this.nuevaFiles.push(f);
+        if (f.type.startsWith('image/')) this.nuevaFilePreviews.set(f, URL.createObjectURL(f));
+      });
       input.value = '';
     }
   }
 
-  removeNuevaFile(i: number): void { this.nuevaFiles.splice(i, 1); }
+  removeNuevaFile(i: number): void {
+    const f = this.nuevaFiles[i];
+    const url = this.nuevaFilePreviews.get(f);
+    if (url) { URL.revokeObjectURL(url); this.nuevaFilePreviews.delete(f); }
+    this.nuevaFiles.splice(i, 1);
+  }
+
+
+  onNuevaDragEnter(): void {
+    this.nuevaDragCounter++;
+    this.nuevaDragOver = true;
+  }
+
+  onNuevaDragLeave(): void {
+    if (--this.nuevaDragCounter === 0) this.nuevaDragOver = false;
+  }
+
+  onNuevaDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.nuevaDragCounter = 0;
+    this.nuevaDragOver = false;
+    Array.from(event.dataTransfer?.files ?? []).forEach(f => {
+      this.nuevaFiles.push(f);
+      if (f.type.startsWith('image/')) this.nuevaFilePreviews.set(f, URL.createObjectURL(f));
+    });
+  }
+
+  getNuevaPreviewUrl(file: File): string { return this.nuevaFilePreviews.get(file) ?? ''; }
 
   guardarNuevaSolicitud(): void {
     if (this.nuevaForm.invalid) { this.nuevaForm.markAllAsTouched(); return; }
