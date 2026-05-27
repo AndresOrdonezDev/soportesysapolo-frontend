@@ -32,11 +32,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  background: url('/assets/login-background.jpg') center center / cover no-repeat
 }
 
 .login-card {
-  background: #fff;
+  background: #f3f3f3;
   border-radius: 16px;
   padding: 2.5rem;
   width: 100%;

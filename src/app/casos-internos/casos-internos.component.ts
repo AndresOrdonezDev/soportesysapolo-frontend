@@ -59,7 +59,6 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
   claveError = '';
   claveSuccess = '';
 
-  wsToast = '';
   private wsSubs: Subscription[] = [];
 
   constructor(
@@ -89,7 +88,6 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.wsSubs.forEach(s => s.unsubscribe());
-    this.socketService.disconnect();
     this.imageCache.forEach(url => URL.revokeObjectURL(url));
     this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
     this.nuevoFilePreviews.forEach(url => URL.revokeObjectURL(url));
@@ -518,7 +516,6 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
         if (!this.casos.find(x => x.id === c.id)) {
           this.casos = [c, ...this.casos];
         }
-        this.showWsToast(`Nuevo caso: ${c.titulo || '#' + c.id}`);
       }),
     );
 
@@ -538,7 +535,6 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
           this.selectedCaso = c;
           this.loadThreadImages(c);
         }
-        this.showWsToast(`Caso actualizado: #${c.id}`);
       }),
     );
 
@@ -551,11 +547,6 @@ export class CasosInternosComponent implements OnInit, OnDestroy {
         }
       }),
     );
-  }
-
-  private showWsToast(msg: string): void {
-    this.wsToast = msg;
-    setTimeout(() => (this.wsToast = ''), 5000);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

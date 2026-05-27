@@ -71,7 +71,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   exporting = false;
 
   // WS
-  wsToast = '';
   private wsSubs: Subscription[] = [];
 
   constructor(
@@ -109,7 +108,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.wsSubs.forEach(s => s.unsubscribe());
-    this.socketService.disconnect();
     this.imageCache.forEach(url => URL.revokeObjectURL(url));
     this.replyFilePreviews.forEach(url => URL.revokeObjectURL(url));
     this.nuevaFilePreviews.forEach(url => URL.revokeObjectURL(url));
@@ -557,7 +555,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (!this.soportes.find(x => x.id === s.id)) {
           this.soportes = [s, ...this.soportes];
         }
-        this.showWsToast(`Nueva solicitud: ${s.titulo || '#' + s.id}`);
       })
     );
 
@@ -577,7 +574,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.selectedSoporte = s;
           this.loadThreadImages(s);
         }
-        this.showWsToast(`Nuevo mensaje en solicitud #${s.id}`);
       })
     );
 
@@ -587,11 +583,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (this.selectedSoporteId === id) { this.selectedSoporteId = null; this.selectedSoporte = null; }
       })
     );
-  }
-
-  private showWsToast(msg: string): void {
-    this.wsToast = msg;
-    setTimeout(() => (this.wsToast = ''), 5000);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
